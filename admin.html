@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Painel – Lista de Presentes</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Bootstrap -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+
+  <!-- Firebase (compat) -->
+  <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore-compat.js"></script>
+  <script src="admin.js"></script>
+
+</head>
+
+<body class="bg-light">
+
+  <div class="container py-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h1 class="h4 mb-0">Painel da Lista de Presentes</h1>
+      <button id="btnLogout" class="btn btn-outline-secondary btn-sm d-none">
+        Sair
+      </button>
+    </div>
+
+    <!-- LOGIN -->
+    <div id="loginArea" class="row justify-content-center">
+      <div class="col-md-4">
+        <div class="card shadow-sm">
+          <div class="card-body">
+            <h2 class="h5 mb-3 text-center">Acesso restrito</h2>
+
+            <div class="mb-3">
+              <label for="email" class="form-label">E-mail</label>
+              <input type="email" id="email" class="form-control" />
+            </div>
+
+            <div class="mb-3">
+              <label for="senha" class="form-label">Senha</label>
+              <input type="password" id="senha" class="form-control" />
+            </div>
+
+            <button id="btnLogin" class="btn btn-primary w-100">
+              Entrar
+            </button>
+
+            <small class="text-muted d-block mt-3">
+              Use o e-mail e senha cadastrados no Firebase Authentication.
+            </small>
+
+            <div id="loginErro" class="text-danger mt-2 small d-none"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div id="dashboard" class="d-none">
+
+      <ul class="nav nav-tabs mb-3">
+        <li class="nav-item">
+          <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tabPresentes">
+            Presentes
+          </button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabReservas">
+            Reservas
+          </button>
+        </li>
+      </ul>
+
+      <div class="tab-content">
+
+        <div class="tab-pane fade show active" id="tabPresentes">
+
+          <div class="card mb-4">
+            <div class="card-body">
+              <h2 class="h5 mb-3" id="formTitulo">Novo presente</h2>
+
+              <form id="formPresente" class="row g-3">
+                <input type="hidden" id="presenteId" />
+
+                <div class="col-md-6">
+                  <label class="form-label" for="titulo">Título</label>
+                  <input type="text" id="titulo" class="form-control" required />
+                </div>
+
+                <div class="col-md-6">
+                  <label class="form-label" for="imagemUrl">URL da imagem</label>
+                  <input type="text" id="imagemUrl" class="form-control" />
+                </div>
+
+                <div class="col-12">
+                  <label class="form-label" for="descricao">Descrição</label>
+                  <textarea id="descricao" class="form-control" rows="2"></textarea>
+                </div>
+
+                <div class="col-md-4">
+                  <label class="form-label" for="lojaNome">Loja</label>
+                  <input type="text" id="lojaNome" class="form-control" />
+                </div>
+
+                <div class="col-md-8">
+                  <label class="form-label" for="lojaUrl">Link da loja</label>
+                  <input type="text" id="lojaUrl" class="form-control" />
+                </div>
+
+                <div class="col-md-4">
+                  <label class="form-label" for="precoTotal">Preço total (R$)</label>
+                  <input type="number" step="0.01" id="precoTotal" class="form-control" />
+                </div>
+
+                <div class="col-md-4">
+                  <label class="form-label">Permite cotas?</label>
+                  <select id="permiteCotas" class="form-select">
+                    <option value="false">Não</option>
+                    <option value="true">Sim</option>
+                  </select>
+                </div>
+
+                <div class="col-md-4" id="campoValorCota">
+                  <label class="form-label" for="valorPorCota">Valor por cota (R$)</label>
+                  <input type="number" step="0.01" id="valorPorCota" class="form-control" />
+                </div>
+
+                <div class="col-md-4" id="campoQtdCotas">
+                  <label class="form-label" for="qtdCotasTotal">Qtd. de cotas</label>
+                  <input type="number" id="qtdCotasTotal" class="form-control" />
+                </div>
+
+                <div class="col-12">
+                  <button type="submit" class="btn btn-primary me-2">
+                    Salvar
+                  </button>
+                  <button type="button" id="btnCancelarEdicao" class="btn btn-outline-secondary btn-sm d-none">
+                    Cancelar edição
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-body">
+              <h2 class="h5 mb-3">Presentes cadastrados</h2>
+              <div class="table-responsive">
+                <table class="table table-sm align-middle">
+                  <thead>
+                    <tr>
+                      <th>Título</th>
+                      <th>Preço total</th>
+                      <th>Cotas</th>
+                      <th>Status</th>
+                      <th style="width: 140px;">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tabelaPresentes">
+                    <!-- via JS -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="tab-pane fade" id="tabReservas">
+          <div class="card">
+            <div class="card-body">
+              <h2 class="h5 mb-3">Reservas</h2>
+              <div class="table-responsive">
+                <table class="table table-sm align-middle">
+                  <thead>
+                    <tr>
+                      <th>Presente</th>
+                      <th>Convidado</th>
+                      <th>Cotas</th>
+                      <th>Valor total</th>
+                      <th>Mensagem</th>
+                      <th>Data</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tabelaReservas">
+                    <!-- via JS -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="admin.js"></script>
+</body>
+
+</html>
