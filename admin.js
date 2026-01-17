@@ -8,13 +8,15 @@ const firebaseConfig = {
   appId: "1:513702847586:web:d113388217fd1a0e62dd3b"
 };
 
-// Troque pelo UID do seu usuário admin (pega no Firebase Auth)
+// UID do usuário admin (pego no Firebase Auth)
 const ADMIN_UID = "0XjhYpambgcui8TsJ0OhZyovP2T2";
 
 // Inicializa Firebase
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
+
+console.log("admin.js carregado");
 
 // ======= ELEMENTOS DA TELA =======
 const loginArea = document.getElementById("loginArea");
@@ -45,35 +47,49 @@ const campoQtdCotas = document.getElementById("campoQtdCotas");
 const tabelaPresentes = document.getElementById("tabelaPresentes");
 const tabelaReservas = document.getElementById("tabelaReservas");
 
+// Só pra garantir que nenhum elemento crítico veio null:
+if (!btnLogin) console.error("Elemento #btnLogin não encontrado no HTML");
+if (!formPresente) console.error("Elemento #formPresente não encontrado no HTML");
+if (!permiteCotasSelect) console.error("Elemento #permiteCotas não encontrado no HTML");
+
 // ======= CONTROLE DE LOGIN =======
 
-btnLogin.addEventListener("click", async () => {
-  const email = document.getElementById("email").value.trim();
-  const senha = document.getElementById("senha").value.trim();
+if (btnLogin) {
+  btnLogin.addEventListener("click", async () => {
+    const email = document.getElementById("email").value.trim();
+    const senha = document.getElementById("senha").value.trim();
 
-  loginErro.classList.add("d-none");
-  loginErro.textContent = "";
+    loginErro.classList.add("d-none");
+    loginErro.textContent = "";
 
-  try {
-    await auth.signInWithEmailAndPassword(email, senha);
-  } catch (err) {
-    console.error(err);
-    loginErro.textContent = "Falha no login. Verifique e-mail/senha.";
-    loginErro.classList.remove("d-none");
-  }
-});
+    try {
+      console.log("Tentando login com", email);
+      await auth.signInWithEmailAndPassword(email, senha);
+      // se der certo, onAuthStateChanged vai disparar
+    } catch (err) {
+      console.error("Erro no login:", err);
+      loginErro.textContent = "Falha no login. Verifique e-mail/senha.";
+      loginErro.classList.remove("d-none");
+    }
+  });
+}
 
-btnLogout.addEventListener("click", async () => {
-  await auth.signOut();
-});
+if (btnLogout) {
+  btnLogout.addEventListener("click", async () => {
+    await auth.signOut();
+  });
+}
 
 // Observa estado de autenticação
 auth.onAuthStateChanged((user) => {
+  console.log("onAuthStateChanged -> user:", user?.uid, "ADMIN:", ADMIN_UID);
+
   if (user && user.uid === ADMIN_UID) {
     // Mostra dashboard
     loginArea.classList.add("d-none");
     dashboard.classList.remove("d-none");
     btnLogout.classList.remove("d-none");
+    loginErro.classList.add("d-none");
 
     iniciarDashboard();
   } else {
@@ -81,21 +97,27 @@ auth.onAuthStateChanged((user) => {
     dashboard.classList.add("d-none");
     btnLogout.classList.add("d-none");
     loginArea.classList.remove("d-none");
+
+    // se tiver user mas não for admin, mostra mensagem
+    if (user && user.uid !== ADMIN_UID) {
+      loginErro.textContent = "Este usuário não tem acesso ao painel admin.";
+      loginErro.classList.remove("d-none");
+    }
   }
 });
 
 // ======= LÓGICA DO DASHBOARD =======
 
 function iniciarDashboard() {
-  // Carrega presentes e reservas em tempo real
+  console.log("Iniciando dashboard...");
   carregarPresentes();
   carregarReservas();
-
-  // Exibe / esconde campos de cota
   atualizaVisibilidadeCotas();
 }
 
-permiteCotasSelect.addEventListener("change", atualizaVisibilidadeCotas);
+if (permiteCotasSelect) {
+  permiteCotasSelect.addEventListener("change", atualizaVisibilidadeCotas);
+}
 
 function atualizaVisibilidadeCotas() {
   const permite = permiteCotasSelect.value === "true";
@@ -105,45 +127,48 @@ function atualizaVisibilidadeCotas() {
 
 // ======= CRUD PRESENTES =======
 
-formPresente.addEventListener("submit", async (e) => {
-  e.preventDefault();
+if (formPresente) {
+  formPresente.addEventListener("submit", async (e) => {
+    e.preventDefault();
 
-  const id = presenteIdInput.value || null;
-  const permiteCotas = permiteCotasSelect.value === "true";
+    const id = presenteIdInput.value || null;
+    const permiteCotas = permiteCotasSelect.value === "true";
 
-  const dados = {
-    titulo: tituloInput.value.trim(),
-    imagemUrl: imagemUrlInput.value.trim() || null,
-    descricao: descricaoInput.value.trim() || null,
-    lojaNome: lojaNomeInput.value.trim() || null,
-    lojaUrl: lojaUrlInput.value.trim() || null,
-    precoTotal: precoTotalInput.value ? Number(precoTotalInput.value) : null,
-    permiteCotas,
-    valorPorCota: permiteCotas && valorPorCotaInput.value ? Number(valorPorCotaInput.value) : null,
-    qtdCotasTotal: permiteCotas && qtdCotasTotalInput.value ? Number(qtdCotasTotalInput.value) : 1,
-    qtdCotasReservadas: 0, // ao criar, sempre 0
-    status: "disponivel"
-  };
+    const dados = {
+      titulo: tituloInput.value.trim(),
+      imagemUrl: imagemUrlInput.value.trim() || null,
+      descricao: descricaoInput.value.trim() || null,
+      lojaNome: lojaNomeInput.value.trim() || null,
+      lojaUrl: lojaUrlInput.value.trim() || null,
+      precoTotal: precoTotalInput.value ? Number(precoTotalInput.value) : null,
+      permiteCotas,
+      valorPorCota: permiteCotas && valorPorCotaInput.value ? Number(valorPorCotaInput.value) : null,
+      qtdCotasTotal: permiteCotas && qtdCotasTotalInput.value ? Number(qtdCotasTotalInput.value) : 1,
+      qtdCotasReservadas: 0,
+      status: "disponivel"
+    };
 
-  try {
-    if (id) {
-      // update (não mexe em qtdCotasReservadas/status)
-      delete dados.qtdCotasReservadas;
-      delete dados.status;
-      await db.collection("presentes").doc(id).update(dados);
-    } else {
-      await db.collection("presentes").add(dados);
+    try {
+      if (id) {
+        delete dados.qtdCotasReservadas;
+        delete dados.status;
+        await db.collection("presentes").doc(id).update(dados);
+      } else {
+        await db.collection("presentes").add(dados);
+      }
+      limparFormPresente();
+    } catch (err) {
+      console.error("Erro ao salvar presente:", err);
+      alert("Erro ao salvar presente. Veja o console.");
     }
-    limparFormPresente();
-  } catch (err) {
-    console.error("Erro ao salvar presente:", err);
-    alert("Erro ao salvar presente. Veja o console.");
-  }
-});
+  });
+}
 
-btnCancelarEdicao.addEventListener("click", () => {
-  limparFormPresente();
-});
+if (btnCancelarEdicao) {
+  btnCancelarEdicao.addEventListener("click", () => {
+    limparFormPresente();
+  });
+}
 
 function limparFormPresente() {
   presenteIdInput.value = "";
