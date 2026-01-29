@@ -1,0 +1,280 @@
+/* ======== BASE ======== */
+
+:root {
+  --verde-escuro: #4f6240;      /* um pouco mais forte */
+  --verde-medio:  #6e8351;
+  --bege-claro:   #f3e7ca;      /* bege mais quentinho */
+  --cinza-texto:  #555555;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Montserrat", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  background-color: var(--bege-claro);
+  color: var(--cinza-texto);
+}
+
+/* ======== NAVBAR ======== */
+
+.navbar {
+  border-bottom: 1px solid rgba(79, 98, 64, 0.15);
+  background-color: var(--verde-escuro) !important;
+}
+
+.navbar-brand {
+  font-family: "Playfair Display", serif;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--bege-claro) !important;
+  font-size: 0.9rem;
+}
+
+main.container {
+  max-width: 1100px;
+}
+/* ======== TÍTULOS / TEXTOS ======== */
+
+main h1,
+main h2 {
+  font-family: "Playfair Display", serif;
+  color: var(--verde-escuro);
+}
+
+main h1.h4 {
+  font-family: "Playfair Display", serif;
+  font-size: 1.6rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--verde-escuro);
+  margin-bottom: 0.75rem;
+}
+
+section.mb-4.text-center {
+  position: relative;
+}
+
+section.mb-4.text-center::after {
+  content: "";
+  display: block;
+  width: 90px;
+  height: 2px;
+  background-color: var(--verde-escuro);
+  margin: 0.75rem auto 0;
+  border-radius: 999px;
+}
+
+section.mb-4.text-center + section {
+  /* seção da lista de presentes */
+  background-color: rgba(255, 255, 255, 0.4);
+  border-radius: 1.5rem;
+  padding: 1.5rem 1rem 2rem;
+}
+
+
+section p {
+  line-height: 1.7;
+}
+
+/* ======== BOTÕES ======== */
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--verde-escuro), var(--verde-medio));
+  border-color: var(--verde-escuro);
+  border-radius: 999px;
+  padding-inline: 1.4rem;
+  font-weight: 500;
+}
+
+.btn-primary:hover,
+.btn-primary:focus {
+  background: linear-gradient(135deg, var(--verde-medio), var(--verde-escuro));
+  border-color: var(--verde-medio);
+}
+
+.btn-outline-secondary {
+  border-color: #c7c9c2;
+  color: #6c6f68;
+}
+
+.btn-outline-secondary:hover {
+  background-color: #e5e7df;
+  border-color: #c7c9c2;
+  color: #4b4d47;
+}
+
+/* ======== LISTA DE PRESENTES ======== */
+
+#listaPresentes {
+  margin-top: 2rem;
+}
+
+/* Cards dos presentes (assumindo que o JS cria .card) */
+#listaPresentes .card {
+  border: none;
+  border-radius: 1.2rem;
+  background: linear-gradient(180deg, #fdfbf7 0%, #ffffff 60%, #fbf7ef 100%);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.05);
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+#listaPresentes .card::before {
+  content: "";
+  display: block;
+  height: 4px;
+  width: 100%;
+  background: linear-gradient(90deg, var(--verde-escuro), var(--verde-medio));
+}
+
+#listaPresentes .card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.08);
+}
+
+/* Imagem do presente (se existir) */
+#listaPresentes .card-img-top {
+  max-height: 210px;
+  object-fit: cover;
+}
+
+/* Corpo do card */
+#listaPresentes .card-body {
+  padding: 1.1rem 1.3rem 1.3rem;
+}
+
+/* Título do presente */
+#listaPresentes .card-title {
+  font-family: "Playfair Display", serif;
+  font-size: 1.05rem;
+  margin-bottom: 0.4rem;
+  color: var(--verde-escuro);
+}
+
+/* Descrição menor e suave */
+#listaPresentes .card-text {
+  font-size: 0.9rem;
+  color: #777a73;
+}
+
+/* Info de preço e cotas */
+.presente-info-preco {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--verde-escuro);
+}
+
+.presente-info-cotas {
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #9a9d94;
+}
+
+/* Rodapé do card: botões alinhados */
+#listaPresentes .card-footer {
+  background-color: #ffffff;
+  border-top: 1px solid #eef0ea;
+  padding: 0.75rem 1.2rem 0.9rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Badge de status (se você colocar via JS) */
+.badge-status {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.badge-disponivel {
+  background-color: rgba(93, 109, 75, 0.08);
+  color: var(--verde-escuro);
+}
+
+.badge-esgotado {
+  background-color: #f3dcdc;
+  color: #9c3b3b;
+}
+
+/* Alerta de lista vazia */
+#listaVazia {
+  border-radius: 0.9rem;
+  border: 1px dashed #cfd2c6;
+  background-color: rgba(245, 246, 241, 0.7);
+}
+
+/* ======== MODAIS ======== */
+
+.modal-content {
+  border-radius: 1rem;
+  border: none;
+}
+
+.modal-header {
+  border-bottom: none;
+  background-color: #f4f5ef;
+}
+
+.modal-title {
+  font-family: "Playfair Display", serif;
+  color: var(--verde-escuro);
+}
+
+.modal-footer {
+  border-top: none;
+  background-color: #fbfbf8;
+}
+
+/* Inputs */
+.form-label {
+  font-size: 0.9rem;
+  color: #6b6d64;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.form-control {
+  border-radius: 0.7rem;
+  border: 1px solid #d7dacd;
+}
+
+.form-control:focus {
+  border-color: var(--verde-medio);
+  box-shadow: 0 0 0 0.15rem rgba(93, 109, 75, 0.15);
+}
+
+/* Textinhos de help */
+.form-text {
+  font-size: 0.8rem;
+  color: #9a9d94;
+}
+
+/* ======== RESPONSIVO ======== */
+
+@media (max-width: 576px) {
+  .navbar-brand {
+    font-size: 0.8rem;
+    letter-spacing: 0.06em;
+  }
+
+  main h1.h4 {
+    font-size: 1.2rem;
+  }
+
+  #listaPresentes .card {
+    border-radius: 0.9rem;
+  }
+}

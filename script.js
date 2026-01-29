@@ -7,6 +7,7 @@ const firebaseConfig = {
   appId: "1:513702847586:web:d113388217fd1a0e62dd3b"
 };
 
+// Chave Pix para presentes do tipo "cotas"
 const PIX_CHAVE = "+5521998827325";
 
 firebase.initializeApp(firebaseConfig);
@@ -29,7 +30,7 @@ const qtdCotasInput = document.getElementById("qtdCotasInput");
 const textoCotasDisponiveis = document.getElementById("textoCotasDisponiveis");
 const valorReservaTextoSpan = document.getElementById("valorReservaTexto");
 
-// Modal Pix
+// Modal Pix (apenas para tipo "cotas")
 const modalPixEl = document.getElementById("modalPix");
 const modalPix = new bootstrap.Modal(modalPixEl);
 const pixPresenteTituloSpan = document.getElementById("pixPresenteTitulo");
@@ -44,6 +45,16 @@ const btnCopiarValor = document.getElementById("btnCopiarValor");
 let presenteSelecionado = null;
 let valorReservaAtual = 0;
 let qtdCotasEscolhida = 1;
+
+// Helper: descobre tipo do presente mesmo se faltar o campo (retrocompat)
+function obterTipoPresente(p) {
+  if (p.tipo) return p.tipo; // se já vier do banco
+
+  // fallback: tenta deduzir
+  if (p.permiteCotas) return "cotas";
+  if (p.lojaUrl) return "online";
+  return "livre";
+}
 
 // ========== CARREGAR PRESENTES ==========
 function carregarPresentes() {
@@ -63,44 +74,82 @@ function carregarPresentes() {
         const p = doc.data();
         const id = doc.id;
 
+        const tipo = obterTipoPresente(p);
+        const isCotas = tipo === "cotas";
+        const isOnline = tipo === "online";
+        const isLivre = tipo === "livre";
+
         const col = document.createElement("div");
         col.className = "col-12 col-md-6 col-lg-4";
 
-        const cotasText = p.permiteCotas
+        const cotasText = isCotas
           ? `${p.qtdCotasReservadas || 0}/${p.qtdCotasTotal} cotas`
           : null;
 
-        const esgotado = p.status === "completo" ||
-          (p.permiteCotas && (p.qtdCotasReservadas || 0) >= p.qtdCotasTotal);
+        const esgotado =
+          p.status === "completo" ||
+          (isCotas && (p.qtdCotasReservadas || 0) >= (p.qtdCotasTotal || 1));
+
+        // Texto do tipo para badge
+        let labelTipo = "";
+        if (isCotas) labelTipo = "Cotas via Pix";
+        else if (isOnline) labelTipo = "Presente online";
+        else labelTipo = "Presente livre";
+
+        // Bloco de preço/infos
+        let blocoInfo = "";
+        if (isCotas && p.valorPorCota) {
+          blocoInfo = `
+            <p class="mb-1">
+              <span class="presente-info-preco d-block">Cota: <strong>R$ ${p.valorPorCota.toFixed(2)}</strong></span>
+              <span class="presente-info-cotas d-block">Cotas: <strong>${cotasText}</strong></span>
+            </p>
+          `;
+        } else if (p.precoTotal) {
+          blocoInfo = `
+            <p class="mb-1">
+              <span class="presente-info-preco d-block">
+                Valor ${isOnline ? "aprox." : "sugerido"}:
+                <strong>R$ ${p.precoTotal.toFixed(2)}</strong>
+              </span>
+            </p>
+          `;
+        }
+
+        // Link da loja (mais destacado para ONLINE)
+        let blocoLoja = "";
+        if (p.lojaNome || p.lojaUrl) {
+          const linkTexto = isOnline ? "Abrir site da loja" : "Ver na loja";
+          blocoLoja = `
+            <p class="small mb-2">
+              Loja: ${p.lojaNome || ""} 
+              ${p.lojaUrl ? `• <a href="${p.lojaUrl}" target="_blank">${linkTexto}</a>` : ""}
+            </p>
+          `;
+        }
 
         col.innerHTML = `
           <div class="card h-100 shadow-sm">
             ${p.imagemUrl ? `
-              <img src="${p.imagemUrl}" class="card-img-top" alt="${p.titulo}" style="object-fit: cover; max-height: 200px;">
+              <img src="${p.imagemUrl}" class="card-img-top" alt="${p.titulo}" />
             ` : ""}
+
             <div class="card-body d-flex flex-column">
-              <h5 class="card-title">${p.titulo || ""}</h5>
+              <div class="d-flex justify-content-between align-items-start mb-2 gap-2">
+                <h5 class="card-title mb-0">${p.titulo || ""}</h5>
+                <span class="badge-status ${
+                  isCotas ? "badge-tipo-cotas" :
+                  isOnline ? "badge-tipo-online" :
+                             "badge-tipo-livre"
+                }">${labelTipo}</span>
+              </div>
+
               <p class="card-text small text-muted mb-2">
                 ${p.descricao || ""}
               </p>
 
-              ${p.lojaNome || p.lojaUrl ? `
-                <p class="small mb-2">
-                  Loja: ${p.lojaNome || ""} ${p.lojaUrl ? `• <a href="${p.lojaUrl}" target="_blank">Ver na loja</a>` : ""}
-                </p>
-              ` : ""}
-
-              <p class="mb-1">
-                ${p.permiteCotas
-                  ? `
-                    <span class="d-block small">Valor da cota: <strong>R$ ${p.valorPorCota.toFixed(2)}</strong></span>
-                    <span class="d-block small">Cotas: <strong>${cotasText}</strong></span>
-                  `
-                  : p.precoTotal
-                    ? `<span class="d-block small">Valor: <strong>R$ ${p.precoTotal.toFixed(2)}</strong></span>`
-                    : ""
-                }
-              </p>
+              ${blocoLoja}
+              ${blocoInfo}
 
               <div class="mt-auto pt-2">
                 <button
@@ -130,6 +179,7 @@ listaPresentesDiv.addEventListener("click", async (e) => {
   if (!doc.exists) return;
 
   presenteSelecionado = { id: doc.id, ...doc.data() };
+  const tipo = obterTipoPresente(presenteSelecionado);
 
   // Preenche modal
   reservaPresenteTituloSpan.textContent = presenteSelecionado.titulo || "";
@@ -138,12 +188,11 @@ listaPresentesDiv.addEventListener("click", async (e) => {
   nomeConvidadoInput.value = "";
   mensagemConvidadoInput.value = "";
 
-  const permiteCotas = !!presenteSelecionado.permiteCotas;
   const cotasReservadas = presenteSelecionado.qtdCotasReservadas || 0;
   const cotasTotal = presenteSelecionado.qtdCotasTotal || 1;
   const cotasDisponiveis = Math.max(cotasTotal - cotasReservadas, 0);
 
-  if (permiteCotas) {
+  if (tipo === "cotas") {
     grupoQtdCotasDiv.classList.remove("d-none");
     qtdCotasInput.min = 1;
     qtdCotasInput.max = cotasDisponiveis;
@@ -151,21 +200,27 @@ listaPresentesDiv.addEventListener("click", async (e) => {
     textoCotasDisponiveis.textContent =
       `Cotas disponíveis: ${cotasDisponiveis} de ${cotasTotal}.`;
     qtdCotasEscolhida = 1;
-    valorReservaAtual = presenteSelecionado.valorPorCota * qtdCotasEscolhida;
+    valorReservaAtual = (presenteSelecionado.valorPorCota || 0) * qtdCotasEscolhida;
   } else {
+    // livre ou online → sem cotas
     grupoQtdCotasDiv.classList.add("d-none");
     qtdCotasEscolhida = 1;
     valorReservaAtual = presenteSelecionado.precoTotal || 0;
   }
 
-  valorReservaTextoSpan.textContent = `R$ ${valorReservaAtual.toFixed(2)}`;
+  // Se não tiver valor (tipo livre), só mostra "—"
+  valorReservaTextoSpan.textContent =
+    valorReservaAtual > 0 ? `R$ ${valorReservaAtual.toFixed(2)}` : "—";
 
   modalReserva.show();
 });
 
 // Atualiza valor quando muda qtd de cotas
 qtdCotasInput.addEventListener("input", () => {
-  if (!presenteSelecionado || !presenteSelecionado.permiteCotas) return;
+  if (!presenteSelecionado) return;
+  const tipo = obterTipoPresente(presenteSelecionado);
+  if (tipo !== "cotas") return;
+
   const v = Number(qtdCotasInput.value || 1);
   const cotasReservadas = presenteSelecionado.qtdCotasReservadas || 0;
   const cotasTotal = presenteSelecionado.qtdCotasTotal || 1;
@@ -180,7 +235,7 @@ qtdCotasInput.addEventListener("input", () => {
   }
 
   qtdCotasInput.value = qtdCotasEscolhida;
-  valorReservaAtual = presenteSelecionado.valorPorCota * qtdCotasEscolhida;
+  valorReservaAtual = (presenteSelecionado.valorPorCota || 0) * qtdCotasEscolhida;
   valorReservaTextoSpan.textContent = `R$ ${valorReservaAtual.toFixed(2)}`;
 });
 
@@ -197,8 +252,9 @@ formReserva.addEventListener("submit", async (e) => {
     return;
   }
 
+  const tipo = obterTipoPresente(presenteSelecionado);
+
   try {
-    // Faz reserva (cria doc em reservas + atualiza cotas do presente)
     const presenteRef = db.collection("presentes").doc(presenteSelecionado.id);
 
     await db.runTransaction(async (transaction) => {
@@ -206,11 +262,13 @@ formReserva.addEventListener("submit", async (e) => {
       if (!doc.exists) throw new Error("Presente não encontrado.");
 
       const p = doc.data();
+      const tipoP = obterTipoPresente(p);
+
       const cotasReservadas = p.qtdCotasReservadas || 0;
       const cotasTotal = p.qtdCotasTotal || 1;
       const cotasDisponiveis = Math.max(cotasTotal - cotasReservadas, 0);
 
-      if (p.permiteCotas) {
+      if (tipoP === "cotas") {
         if (qtdCotasEscolhida > cotasDisponiveis) {
           throw new Error("Quantidade de cotas indisponível.");
         }
@@ -220,25 +278,26 @@ formReserva.addEventListener("submit", async (e) => {
         }
       }
 
-      const valorTotal = p.permiteCotas
-        ? p.valorPorCota * qtdCotasEscolhida
-        : (p.precoTotal || 0);
+      const valorTotal =
+        tipoP === "cotas"
+          ? (p.valorPorCota || 0) * qtdCotasEscolhida
+          : (p.precoTotal || 0);
 
-      // Cria reserva
       const reservaRef = db.collection("reservas").doc();
       transaction.set(reservaRef, {
         presenteId: presenteSelecionado.id,
         tituloPresente: p.titulo || "",
         nomeConvidado: nome,
         mensagem: mensagem || null,
-        quantidadeCotas: p.permiteCotas ? qtdCotasEscolhida : 1,
+        quantidadeCotas: tipoP === "cotas" ? qtdCotasEscolhida : 1,
         valorTotal,
-        statusPagamento: "pendente",
+        tipoPresente: tipoP,
+        statusPagamento: tipoP === "cotas" ? "pendente" : "externo",
         criadoEm: firebase.firestore.FieldValue.serverTimestamp()
       });
 
-      // Atualiza presente (cotas + status)
-      const novoReservado = cotasReservadas + (p.permiteCotas ? qtdCotasEscolhida : 1);
+      const incremento = tipoP === "cotas" ? qtdCotasEscolhida : 1;
+      const novoReservado = cotasReservadas + incremento;
       const novoStatus =
         novoReservado >= cotasTotal ? "completo" : (p.status || "disponivel");
 
@@ -247,15 +306,31 @@ formReserva.addEventListener("submit", async (e) => {
         status: novoStatus
       });
 
-      // Atualiza presenteSelecionado em memória também
       presenteSelecionado.qtdCotasReservadas = novoReservado;
       presenteSelecionado.status = novoStatus;
     });
 
     modalReserva.hide();
 
-    // Abre modal de Pix com dados
-    mostrarModalPix(nome, presenteSelecionado, qtdCotasEscolhida, valorReservaAtual, mensagem);
+    // Pós-reserva de acordo com o tipo
+    if (tipo === "cotas") {
+      mostrarModalPix(nome, presenteSelecionado, qtdCotasEscolhida, valorReservaAtual, mensagem);
+    } else if (tipo === "online") {
+      // agradece + abre site da loja (se houver link)
+      let msg = "Presente reservado! Muito obrigado 💚\n\n";
+      msg += "Agora é só finalizar a compra no site da loja.";
+      alert(msg);
+
+      if (presenteSelecionado.lojaUrl) {
+        window.open(presenteSelecionado.lojaUrl, "_blank");
+      }
+    } else {
+      // tipo livre
+      alert(
+        "Presente reservado! Muito obrigado 💚\n\n" +
+        "Fique à vontade para escolher o modelo/versão desse presente."
+      );
+    }
 
   } catch (err) {
     console.error("Erro ao reservar presente:", err);
@@ -263,15 +338,14 @@ formReserva.addEventListener("submit", async (e) => {
   }
 });
 
-// ========== MODAL PIX ==========
+// ========== MODAL PIX (somente COTAS) ==========
 function mostrarModalPix(nome, presente, qtdCotas, valor, mensagem) {
   pixPresenteTituloSpan.textContent = presente.titulo || "";
   pixPresenteTituloInlineSpan.textContent = presente.titulo || "";
 
   const msgExtra = mensagem ? `Mensagem: "${mensagem}"` : "";
-  const txtCotas = presente.permiteCotas
-    ? `${qtdCotas} cota(s) de R$ ${presente.valorPorCota.toFixed(2)}`
-    : "Presente integral";
+  const txtCotas =
+    `${qtdCotas} cota(s) de R$ ${presente.valorPorCota.toFixed(2)}`;
 
   pixDetalhesReservaSpan.textContent =
     `${nome} • ${txtCotas}${msgExtra ? " • " + msgExtra : ""}`;

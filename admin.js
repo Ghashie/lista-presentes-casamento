@@ -35,7 +35,10 @@ const descricaoInput = document.getElementById("descricao");
 const lojaNomeInput = document.getElementById("lojaNome");
 const lojaUrlInput = document.getElementById("lojaUrl");
 const precoTotalInput = document.getElementById("precoTotal");
-const permiteCotasSelect = document.getElementById("permiteCotas");
+
+// NOVO: select de tipo
+const tipoPresenteSelect = document.getElementById("tipoPresente");
+
 const valorPorCotaInput = document.getElementById("valorPorCota");
 const qtdCotasTotalInput = document.getElementById("qtdCotasTotal");
 const btnCancelarEdicao = document.getElementById("btnCancelarEdicao");
@@ -50,7 +53,7 @@ const tabelaReservas = document.getElementById("tabelaReservas");
 // Só pra garantir que nenhum elemento crítico veio null:
 if (!btnLogin) console.error("Elemento #btnLogin não encontrado no HTML");
 if (!formPresente) console.error("Elemento #formPresente não encontrado no HTML");
-if (!permiteCotasSelect) console.error("Elemento #permiteCotas não encontrado no HTML");
+if (!tipoPresenteSelect) console.error("Elemento #tipoPresente não encontrado no HTML");
 
 // ======= CONTROLE DE LOGIN =======
 
@@ -115,12 +118,14 @@ function iniciarDashboard() {
   atualizaVisibilidadeCotas();
 }
 
-if (permiteCotasSelect) {
-  permiteCotasSelect.addEventListener("change", atualizaVisibilidadeCotas);
+if (tipoPresenteSelect) {
+  tipoPresenteSelect.addEventListener("change", atualizaVisibilidadeCotas);
 }
 
 function atualizaVisibilidadeCotas() {
-  const permite = permiteCotasSelect.value === "true";
+  if (!tipoPresenteSelect) return;
+  const tipo = tipoPresenteSelect.value;
+  const permite = tipo === "cotas";
   campoValorCota.style.display = permite ? "block" : "none";
   campoQtdCotas.style.display = permite ? "block" : "none";
 }
@@ -132,9 +137,12 @@ if (formPresente) {
     e.preventDefault();
 
     const id = presenteIdInput.value || null;
-    const permiteCotas = permiteCotasSelect.value === "true";
 
-    const dados = {
+    const tipo = tipoPresenteSelect.value || "livre";
+    const permiteCotas = tipo === "cotas";
+
+    const dadosBase = {
+      tipo,                               // "livre" | "cotas" | "online"
       titulo: tituloInput.value.trim(),
       imagemUrl: imagemUrlInput.value.trim() || null,
       descricao: descricaoInput.value.trim() || null,
@@ -142,17 +150,29 @@ if (formPresente) {
       lojaUrl: lojaUrlInput.value.trim() || null,
       precoTotal: precoTotalInput.value ? Number(precoTotalInput.value) : null,
       permiteCotas,
-      valorPorCota: permiteCotas && valorPorCotaInput.value ? Number(valorPorCotaInput.value) : null,
-      qtdCotasTotal: permiteCotas && qtdCotasTotalInput.value ? Number(qtdCotasTotalInput.value) : 1,
-      qtdCotasReservadas: 0,
-      status: "disponivel"
+      valorPorCota: permiteCotas && valorPorCotaInput.value
+        ? Number(valorPorCotaInput.value)
+        : null,
+      qtdCotasTotal: permiteCotas && qtdCotasTotalInput.value
+        ? Number(qtdCotasTotalInput.value)
+        : 1
     };
+
+    // Ao criar, definimos campos iniciais de status e cotas reservadas
+    let dados = { ...dadosBase };
+
+    if (!id) {
+      dados = {
+        ...dadosBase,
+        qtdCotasReservadas: 0,
+        status: "disponivel"
+      };
+    }
 
     try {
       if (id) {
-        delete dados.qtdCotasReservadas;
-        delete dados.status;
-        await db.collection("presentes").doc(id).update(dados);
+        // update (não mexe em qtdCotasReservadas/status aqui)
+        await db.collection("presentes").doc(id).update(dadosBase);
       } else {
         await db.collection("presentes").add(dados);
       }
@@ -174,7 +194,7 @@ function limparFormPresente() {
   presenteIdInput.value = "";
   formTitulo.textContent = "Novo presente";
   formPresente.reset();
-  permiteCotasSelect.value = "false";
+  if (tipoPresenteSelect) tipoPresenteSelect.value = "livre";
   atualizaVisibilidadeCotas();
   btnCancelarEdicao.classList.add("d-none");
 }
@@ -249,7 +269,17 @@ function carregarPresentes() {
         lojaUrlInput.value = p.lojaUrl || "";
         precoTotalInput.value = p.precoTotal || "";
 
-        permiteCotasSelect.value = p.permiteCotas ? "true" : "false";
+        // Preenche tipo, com fallback pra dados antigos
+        if (tipoPresenteSelect) {
+          let tipo = p.tipo;
+          if (!tipo) {
+            if (p.permiteCotas) tipo = "cotas";
+            else if (p.lojaUrl) tipo = "online";
+            else tipo = "livre";
+          }
+          tipoPresenteSelect.value = tipo;
+        }
+
         atualizaVisibilidadeCotas();
         valorPorCotaInput.value = p.valorPorCota || "";
         qtdCotasTotalInput.value = p.qtdCotasTotal || "";
